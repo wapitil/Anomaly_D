@@ -1,0 +1,8 @@
+backbone: resnet18
+conv3x3_only: false
+evaluator: false
+flow_steps: 8
+hidden_ratio: 1.0
+post_processor: true
+pre_trained: true
+visualizer: false
