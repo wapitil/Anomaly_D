@@ -5,6 +5,9 @@ __pycache__/
 
 # Folder
 Datasets/
+
+# 
+*.bmp
 # C extensions
 *.so
 
