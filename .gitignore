@@ -209,3 +209,4 @@ calibration_*.npy
 args.yaml
 results.csv
 *.tar.xz
+.codex

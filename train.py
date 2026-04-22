@@ -1,9 +1,7 @@
-import logging
-from pathlib import Path
 from time import time
 
 import colorlog
-from anomalib.data import MVTecAD
+from anomalib.data import Folder, MVTecAD
 from anomalib.engine import Engine
 from anomalib.models import Stfpm
 
@@ -27,34 +25,41 @@ handler.setFormatter(
 
 logger = colorlog.getLogger()
 logger.addHandler(handler)
-logger.setLevel(logging.INFO)
-
-dataset_root = Path.cwd() / "Datasets" / "MVTecAD"
-
-# 1. 数据
-datamodule = MVTecAD(
-    root=dataset_root,
-    category="leather",
-    train_batch_size=64,
-    eval_batch_size=64,
-    num_workers=2,
-)
+logger.setLevel("INFO")
 
 
-# 2. 模型（重点）
-model = Stfpm(backbone="resnet18", layers=["layer1", "layer2", "layer3"])
-# model = Fastflow(backbone="resnet18", pre_trained=True, flow_steps=8)
+def train(is_real, receiver_root):
+    # 1. 数据
+    if not is_real:
+        datamodule = MVTecAD(
+            root=receiver_root,
+            category="leather",
+            train_batch_size=64,
+            eval_batch_size=64,
+            num_workers=2,
+        )
+    else:
+        datamodule = Folder(
+            name="RDK captured",
+            root=receiver_root,
+            normal_dir="good",
+            num_workers=2,
+        )
+        max_epochs = 3
 
-# 3. 训练
-engine = Engine(
-    max_epochs=50,
-)
+    # 2. 模型（重点）
+    model = Stfpm(backbone="resnet18", layers=["layer1", "layer2", "layer3"])
+    # model = Fastflow(backbone="resnet18", pre_trained=True, flow_steps=8)
 
-start_time = time()
-engine.fit(model=model, datamodule=datamodule)
-end_time = time()
-train_time = end_time - start_time
-logging.info(f"Train Time :{train_time}")
+    # 3. 训练
 
-# 4. 推理
-# predictions = engine.predict(model=model, datamodule=datamodule)
+    engine = Engine(
+        max_epochs=max_epochs,
+    )
+
+    start_time = time()
+    engine.fit(model=model, datamodule=datamodule)
+    end_time = time()
+    train_time = end_time - start_time
+
+    logger.info("Train Time: %.2f seconds", train_time)
