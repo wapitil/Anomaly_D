@@ -1,71 +1,42 @@
-from __future__ import annotations
-
-import argparse
 from pathlib import Path
 
+import onnx
+import torch
 from anomalib.models import Stfpm
+from onnxsim import simplify
 
-from export_utils import export_model_to_onnx
+CKPT_PATH = Path("results/Stfpm/MVTecAD/leather/latest/weights/lightning/model.ckpt")
+ONNX_PATH = Path("stfpm_leather.onnx")
+IMAGE_SIZE = 256
+OPSET = 11
 
-DEFAULT_CKPT = Path(
-    "results/Stfpm/MVTecAD/leather/latest/weights/lightning/model.ckpt"
+model = Stfpm.load_from_checkpoint(
+    str(CKPT_PATH),
+    backbone="resnet18",
+    layers=["layer1", "layer2", "layer3"],
 )
-DEFAULT_OUTPUT = Path("stfpm_leather.onnx")
+model.eval().cpu()
 
+dummy = torch.randn(1, 3, IMAGE_SIZE, IMAGE_SIZE)
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Export STFPM checkpoint to ONNX.")
-    parser.add_argument(
-        "--ckpt",
-        type=Path,
-        default=DEFAULT_CKPT,
-        help="Path to the STFPM checkpoint.",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=DEFAULT_OUTPUT,
-        help="Output ONNX path.",
-    )
-    parser.add_argument(
-        "--image-size",
-        type=int,
-        default=256,
-        help="Square input image size.",
-    )
-    parser.add_argument(
-        "--opset",
-        type=int,
-        default=11,
-        help="ONNX opset version.",
-    )
-    parser.add_argument(
-        "--simplify",
-        action="store_true",
-        help="Run onnx-simplifier after export if available.",
-    )
-    return parser.parse_args()
+torch.onnx.export(
+    model,
+    dummy,
+    str(ONNX_PATH),
+    opset_version=OPSET,
+    input_names=["input"],
+    output_names=["output"],
+)
 
+onnx_model = onnx.load(str(ONNX_PATH))
+simplified_model, ok = simplify(
+    onnx_model,
+    overwrite_input_shapes={"input": [1, 3, IMAGE_SIZE, IMAGE_SIZE]},
+)
 
-def build_model(ckpt_path: Path) -> Stfpm:
-    return Stfpm.load_from_checkpoint(
-        str(ckpt_path),
-        backbone="resnet18",
-        layers=["layer1", "layer2", "layer3"],
-    )
+if not ok:
+    raise RuntimeError("onnx simplify failed")
 
+onnx.save(simplified_model, str(ONNX_PATH))
 
-def main() -> None:
-    args = parse_args()
-    model = build_model(args.ckpt)
-    export_model_to_onnx(
-        model=model,
-        output_path=args.output,
-        image_size=args.image_size,
-        opset=args.opset,
-        simplify=args.simplify,
-    )
-
-
-if __name__ == "__main__":
-    main()
+print(f"done: {ONNX_PATH}")

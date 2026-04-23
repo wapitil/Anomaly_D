@@ -5,9 +5,12 @@ __pycache__/
 
 # Folder
 Datasets/
+Server/
 
-# 
+# Images 
 *.bmp
+latest
+
 # C extensions
 *.so
 
