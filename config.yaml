@@ -1,0 +1,7 @@
+rtsp_url: rtsp://127.0.0.1:8554/stream
+# model_path: /home/sunrise/Desktop/find_boss/yolov5s_tag_v7.0_detect_640x640_bayese_nv12.bin
+model_path: /app/fix_detect_ctrl/models/model.bin
+model_nc: 5
+device_id: DISPLAY_001
+api_token: camera_token_123
+server_url: http://124.248.69.54:8765
