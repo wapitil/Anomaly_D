@@ -8,25 +8,6 @@ import torch
 logging.getLogger("torch").setLevel(logging.ERROR)
 
 
-def maybe_simplify(onnx_path: Path, image_size: int) -> None:
-    try:
-        import onnx
-        from onnxsim import simplify
-    except ImportError as exc:
-        raise RuntimeError(
-            "Requested --simplify, but onnx-simplifier is not installed."
-        ) from exc
-
-    model = onnx.load(str(onnx_path))
-    simplified, check = simplify(
-        model,
-        overwrite_input_shapes={"input": [1, 3, image_size, image_size]},
-    )
-    if not check:
-        raise RuntimeError("onnx-simplifier reported validation failure.")
-    onnx.save(simplified, str(onnx_path))
-
-
 def export_model_to_onnx(
     model: torch.nn.Module,
     output_path: Path,
@@ -48,7 +29,22 @@ def export_model_to_onnx(
     )
 
     if simplify:
-        maybe_simplify(output_path, image_size)
+        try:
+            import onnx
+            from onnxsim import simplify as onnx_simplify
+        except ImportError as exc:
+            raise RuntimeError(
+                "Requested --simplify, but onnx-simplifier is not installed."
+            ) from exc
+
+        onnx_model = onnx.load(str(output_path))
+        simplified_model, ok = onnx_simplify(
+            onnx_model,
+            overwrite_input_shapes={"input": [1, 3, image_size, image_size]},
+        )
+        if not ok:
+            raise RuntimeError("onnx-simplifier reported validation failure.")
+        onnx.save(simplified_model, str(output_path))
 
     print(f"Exported ONNX to {output_path}")
     if simplify:
