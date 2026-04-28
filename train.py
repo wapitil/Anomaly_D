@@ -5,9 +5,10 @@ from time import time
 
 import torch
 from anomalib.callbacks import ModelCheckpoint
-from anomalib.data import Folder, MVTecAD
+from anomalib.data import Folder
 from anomalib.engine import Engine
 from anomalib.models import Stfpm
+
 
 from utils import setup_logger
 
@@ -31,40 +32,14 @@ class StfpmFeatureExporter(torch.nn.Module):
         return tuple(outputs)
 
 
-# def NewFolder():
-#     "根据时间戳创建文件夹并存放 无监督 模型"
-#     # 使用当前时间作为文件夹名称，格式为 YYYYMMDD_HHMMSS
-#     folder_name = datetime.now().strftime("%Y%m%d_%H%M%S")
-#     save_path = os.path.join(
-#         os.getcwd(),
-#         "Server",
-#         "models",
-#         folder_name,
-#     )  # images/20260422_092624/good
-#     os.makedirs(save_path, exist_ok=True)
-#     print(f"已创建文件夹: {save_path}")
-#     return save_path
-
-
-def train(is_real, train_root):
-    
-    # 1. 数据
-    if not is_real:
-        datamodule = MVTecAD(
-            root=train_root,
-            category="leather",
-            train_batch_size=64,
-            eval_batch_size=64,
-            num_workers=2,
-        )
-    else:
-        datamodule = Folder(
-            name="RDK captured",
-            root=train_root,
-            normal_dir="good",
-            num_workers=2,
-        )
-        max_epochs = 3
+def train(train_root):
+    datamodule = Folder(
+        name="RDK captured",
+        root=train_root,
+        normal_dir="good",
+        num_workers=3,
+    )
+    max_epochs = 50
 
     # 2. 模型（重点）
     layers = ["layer1", "layer2", "layer3"]
@@ -100,15 +75,13 @@ def train(is_real, train_root):
     logger.info("Train Time: %.2f seconds", train_time)
     logger.info("模型训练完成，正在将模型转换至 onnx ")
 
-    onnx_path = Path(model_path) / "stfpm_features.onnx"
+    onnx_path = Path(model_path) / "stfpm_RDK.onnx"
 
     model.eval().cpu()
     dummy = torch.randn(1, 3, 256, 256)
     exporter = StfpmFeatureExporter(model.model, layers).eval().cpu()
     output_names = [
-        f"{prefix}_{layer}"
-        for layer in layers
-        for prefix in ("teacher", "student")
+        f"{prefix}_{layer}" for layer in layers for prefix in ("teacher", "student")
     ]
 
     torch.onnx.export(
@@ -121,7 +94,4 @@ def train(is_real, train_root):
     )
     logger.info("转换成 STFPM feature onnx 成功: %s", onnx_path)
 
-    # TODO 模型简化
-
-    # rel_path=
     return onnx_path
