@@ -9,27 +9,53 @@ from anomalib.data import Folder
 from anomalib.engine import Engine
 from anomalib.models import Stfpm
 
-
-from utils import setup_logger
+from Trash.utils import setup_logger
 
 setup_logger()
 logger = logging.getLogger(__name__)
 
 
-class StfpmFeatureExporter(torch.nn.Module):
-    def __init__(self, stfpm_model: torch.nn.Module, layers: list[str]) -> None:
+class StfpmModelExporter(torch.nn.Module):
+    def __init__(self, model: torch.nn.Module) -> None:
         super().__init__()
-        self.stfpm_model = stfpm_model
-        self.layers = layers
+        self.model = model
 
-    def forward(self, input_tensor: torch.Tensor) -> tuple[torch.Tensor, ...]:
-        teacher_features = self.stfpm_model.teacher_model(input_tensor)
-        student_features = self.stfpm_model.student_model(input_tensor)
-        outputs: list[torch.Tensor] = []
-        for layer in self.layers:
-            outputs.append(teacher_features[layer])
-            outputs.append(student_features[layer])
-        return tuple(outputs)
+    @staticmethod
+    def _get_output(outputs: object, *names: str) -> torch.Tensor:
+        for name in names:
+            if isinstance(outputs, dict) and name in outputs:
+                return outputs[name]
+            if hasattr(outputs, name):
+                return getattr(outputs, name)
+        available = list(outputs.keys()) if isinstance(outputs, dict) else dir(outputs)
+        raise RuntimeError(f"STFPM 输出中缺少字段 {names}, available={available}")
+
+    def forward(
+        self, input_tensor: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        outputs = self.model(input_tensor)
+        score = self._get_output(outputs, "pred_score", "output")
+        anomaly_map = self._get_output(outputs, "anomaly_map")
+        pred_label = self._get_output(outputs, "pred_label")
+        pred_mask = self._get_output(outputs, "pred_mask")
+        return score, anomaly_map, pred_label, pred_mask
+
+
+def simplify_onnx(onnx_path: Path, image_size: int) -> None:
+    try:
+        import onnx
+        from onnxsim import simplify
+    except ImportError as exc:
+        raise RuntimeError("ONNX 简化需要安装 onnx 和 onnxsim。") from exc
+
+    onnx_model = onnx.load(str(onnx_path))
+    simplified_model, ok = simplify(
+        onnx_model,
+        overwrite_input_shapes={"input": [1, 3, image_size, image_size]},
+    )
+    if not ok:
+        raise RuntimeError("onnx simplify failed")
+    onnx.save(simplified_model, str(onnx_path))
 
 
 def train(train_root):
@@ -39,7 +65,7 @@ def train(train_root):
         normal_dir="good",
         num_workers=3,
     )
-    max_epochs = 50
+    max_epochs = 3
 
     # 2. 模型（重点）
     layers = ["layer1", "layer2", "layer3"]
@@ -78,11 +104,10 @@ def train(train_root):
     onnx_path = Path(model_path) / "stfpm_RDK.onnx"
 
     model.eval().cpu()
-    dummy = torch.randn(1, 3, 256, 256)
-    exporter = StfpmFeatureExporter(model.model, layers).eval().cpu()
-    output_names = [
-        f"{prefix}_{layer}" for layer in layers for prefix in ("teacher", "student")
-    ]
+    image_size = 256
+    dummy = torch.rand(1, 3, image_size, image_size)
+    exporter = StfpmModelExporter(model).eval().cpu()
+    output_names = ["output", "anomaly_map", "483", "485"]
 
     torch.onnx.export(
         exporter,
@@ -92,6 +117,7 @@ def train(train_root):
         input_names=["input"],
         output_names=output_names,
     )
-    logger.info("转换成 STFPM feature onnx 成功: %s", onnx_path)
+    simplify_onnx(onnx_path, image_size)
+    logger.info("转换成 STFPM onnx 并简化成功: %s", onnx_path)
 
     return onnx_path

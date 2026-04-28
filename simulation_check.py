@@ -6,7 +6,8 @@ from pathlib import Path
 
 from flask import Flask, jsonify, request, send_file
 
-from utils import setup_logger
+from train import train
+from Trash.utils import setup_logger
 
 setup_logger()
 logger = logging.getLogger(__name__)
@@ -75,30 +76,36 @@ def TrainTask(zip_path, folder_name):
     try:
         SetJob(folder_name, "running", "正在解压图片")
         logger.info("收到训练任务: %s", folder_name)
-        train_root = ExtractImages(zip_path, folder_name)
-        logger.info("train_root: %s", train_root)
 
-        # 训练函数已被注释，使用静态模型并确保其可下载
-        static_model_source = Path("Datasets/MVTecAD/leather/train/models/stfpm_RDK.onnx")
-  
-        # 目标保存路径 (用于下载)
-        download_model_dir = SERVER_ROOT / folder_name / "model"
-        download_model_dir.mkdir(parents=True, exist_ok=True)
-        actual_model_path_for_download = download_model_dir / MODEL_NAME
-        
-        # 复制静态模型到可下载位置
-        shutil.copy2(static_model_source, actual_model_path_for_download)
-        
+        upload_train_root = ExtractImages(zip_path, folder_name)
+        logger.info("upload_train_root: %s", upload_train_root)
+
+        CheckTrainImages(upload_train_root)
+        SetJob(folder_name, "running", "正在训练模型")
+
+        # TODO 测试完毕后改回 upload_train_root
+        actual_train_root = Path(
+            "/home/wapiti/Projects/Anomaly_D/Datasets/MVTecAD/leather/train"
+        )
+
+        trained_model_path = train(actual_train_root)
+
+        actual_model_path_for_download = SaveModelForDownload(
+            upload_train_root,
+            trained_model_path,
+        )
+
         SetJob(
             folder_name,
             "ready",
-            f"静态模型就绪: {static_model_source}",
-            str(actual_model_path_for_download), # 保存最终可下载的路径
+            f"训练模型就绪: {trained_model_path}",
+            str(actual_model_path_for_download),
         )
+
         logger.info(
-            "任务 %s: 静态模型 %s 已复制到 %s 并标记为就绪。",
+            "任务 %s: 训练模型 %s 已复制到 %s 并标记为就绪。",
             folder_name,
-            static_model_source,
+            trained_model_path,
             actual_model_path_for_download,
         )
     except Exception as exc:
@@ -154,13 +161,16 @@ def ready(folder_name):
 @app.route("/download/<folder_name>", methods=["GET"])
 def download(folder_name):
     job = GetJob(folder_name)
-    model_path = SERVER_ROOT / folder_name / "model" / MODEL_NAME
 
-    if job is not None and job["status"] != "ready":
+    if job is None:
+        return jsonify({"error": "任务不存在"}), 404
+
+    if job["status"] != "ready":
         return jsonify({"error": "模型还没准备好", "status": job["status"]}), 409
 
+    model_path = Path(job["model_path"])
     if not model_path.exists():
-        return jsonify({"error": "模型文件不存在"}), 404
+        return jsonify({"error": f"模型文件不存在: {model_path}"}), 404
 
     return send_file(model_path, as_attachment=True, download_name=MODEL_NAME)
 

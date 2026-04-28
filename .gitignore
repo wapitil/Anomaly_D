@@ -7,6 +7,7 @@ __pycache__/
 Datasets/
 Server/
 Trash/
+results/
 
 # Images 
 *.bmp
