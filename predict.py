@@ -44,7 +44,8 @@ def _resolve_model_path() -> Path:
     if model_path.exists():
         return model_path
 
-    # 后期记得删除
+    # TODO 后期记得删除
+    # print("TODO fallback_path 记得修改")
     fallback_path = PROJECT_ROOT / "stfpm_leather_split.onnx"
     if fallback_path.exists():
         return fallback_path

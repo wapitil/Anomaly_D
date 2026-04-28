@@ -1,6 +1,7 @@
 import zipfile
 from datetime import datetime
 from pathlib import Path
+from time import sleep, monotonic
 
 import cv2
 import requests
@@ -11,6 +12,8 @@ SERVER_ROOT = PROJECT_ROOT / "Server"
 CURRENT_MODEL_LINK = PROJECT_ROOT / "current_model"
 MODEL_NAME = "model.onnx"
 TARGET_IMAGE_COUNT = 1
+MODEL_WAIT_TIMEOUT = 300
+MODEL_CHECK_INTERVAL = 5
 
 
 def CheckNewFabric():
@@ -94,7 +97,7 @@ def DownloadModel(folder_name, model_dir):
     model_path = model_dir / MODEL_NAME
 
     print("开始下载模型:", download_url)
-    response = requests.get(download_url)
+    response = requests.get(download_url, timeout=60)
     # 在请求失败的时候抛出 HTTPError 异常
     response.raise_for_status()
 
@@ -109,6 +112,31 @@ def DownloadModel(folder_name, model_dir):
     tmp_path.replace(model_path)
     print("模型下载完成:", model_path)
     return model_path
+
+
+def WaitAndDownloadModel(folder_name, model_dir):
+    "等待 PC 端训练完成，然后下载模型。409/404 表示模型暂时还不能下载，继续轮询。"
+    deadline = monotonic() + MODEL_WAIT_TIMEOUT
+    last_error = None
+
+    while monotonic() < deadline:
+        if not CheckModelReady(folder_name):
+            print("模型尚未训练完成，等待后重试...")
+            sleep(MODEL_CHECK_INTERVAL)
+            continue
+
+        try:
+            return DownloadModel(folder_name, model_dir)
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else None
+            if status_code in (404, 409):
+                last_error = exc
+                print(f"PC 端模型暂时不能下载(status={status_code})，等待后重试...")
+                sleep(MODEL_CHECK_INTERVAL)
+                continue
+            raise
+
+    raise TimeoutError(f"等待模型训练超时: {folder_name}, last_error={last_error}")
 
 
 def CheckModel(model_path):
@@ -156,7 +184,7 @@ def UpdateModel():
     zip_path = ImageZip(version_root, image_dir)
     # 上传到服务器
     UploadServer(zip_path)
-    DownloadModel(folder_name, model_dir)
+    WaitAndDownloadModel(folder_name, model_dir)
     MarkReady(model_dir, folder_name) # 写入信息
     SwitchCurrentModel(model_dir)
 
