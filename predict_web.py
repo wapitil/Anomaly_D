@@ -256,9 +256,22 @@ def model_update():
 def model_update_status():
     return jsonify(get_update_state())
 
-
+def run_camara():
+    """ 实时推流 """
+    cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)  # 设置宽度
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)  # 设置高度
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("无法读取视频流")
+            break
+        yield frame  # 返回当前帧
+        time.sleep(1 / 30)  # 设置帧率为30 FPS
+        
 def main():
-    Thread(target=run_predict_loop, daemon=True).start()
+    # Thread(target=run_predict_loop, daemon=True).start() # 整体流程
+    Thread(target=run_camara, daemon=True).start() # 实时推流
     print(f"网页地址: http://{WEB_HOST}:{WEB_PORT}")
     app.run(host=WEB_HOST, port=WEB_PORT, threaded=True)
 
