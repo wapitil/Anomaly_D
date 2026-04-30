@@ -3,15 +3,15 @@ import os
 from pathlib import Path
 from time import time
 
+import onnx
 import torch
 from anomalib.callbacks import ModelCheckpoint
 from anomalib.data import Folder
 from anomalib.engine import Engine
 from anomalib.models import Stfpm
+from onnxsim import simplify
 
-from utils import setup_logger
 
-setup_logger()
 logger = logging.getLogger(__name__)
 
 
@@ -42,12 +42,6 @@ class StfpmModelExporter(torch.nn.Module):
 
 
 def simplify_onnx(onnx_path: Path, image_size: int) -> None:
-    try:
-        import onnx
-        from onnxsim import simplify
-    except ImportError as exc:
-        raise RuntimeError("ONNX 简化需要安装 onnx 和 onnxsim。") from exc
-
     onnx_model = onnx.load(str(onnx_path))
     simplified_model, ok = simplify(
         onnx_model,

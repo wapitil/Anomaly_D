@@ -7,9 +7,8 @@ from pathlib import Path
 from flask import Flask, jsonify, request, send_file
 
 from train import train
-from utils import setup_logger
 
-setup_logger()
+
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -17,7 +16,7 @@ app = Flask(__name__)
 SERVER_ROOT = Path.cwd() / "Server"
 UPLOAD_DIR = SERVER_ROOT / "uploads"
 MODEL_NAME = "model.onnx"
-MIN_TRAIN_IMAGES = 5
+MIN_TRAIN_IMAGES = 100
 
 jobs = {}
 jobs_lock = threading.Lock()

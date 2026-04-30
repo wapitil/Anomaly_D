@@ -1,14 +1,19 @@
 import logging
-from pathlib import Path
 
 import colorlog
 
 
-def setup_logger():
+def setup_logger(level=logging.INFO):
+    root = logging.getLogger()
+    root.setLevel(level)
+
+    if root.handlers:
+        return
+
     handler = colorlog.StreamHandler()
     handler.setFormatter(
         colorlog.ColoredFormatter(
-            "%(log_color)s%(asctime)s - %(levelname)s - %(message)s",
+            "%(log_color)s%(asctime)s - %(levelname)s - %(name)s - %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
             log_colors={
                 "DEBUG": "cyan",
@@ -19,9 +24,7 @@ def setup_logger():
             },
         )
     )
+    root.addHandler(handler)
 
-    logger = logging.getLogger()  # 注意：这里不要写 __name__
-    logger.setLevel(logging.INFO)
 
-    if not logger.handlers:
-        logger.addHandler(handler)
+setup_logger()
