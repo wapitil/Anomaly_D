@@ -7,7 +7,7 @@ from pathlib import Path
 from flask import Flask, jsonify, request, send_file
 
 from train import train
-from Trash.utils import setup_logger
+from utils import setup_logger
 
 setup_logger()
 logger = logging.getLogger(__name__)

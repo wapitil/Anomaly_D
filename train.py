@@ -9,7 +9,7 @@ from anomalib.data import Folder
 from anomalib.engine import Engine
 from anomalib.models import Stfpm
 
-from Trash.utils import setup_logger
+from utils import setup_logger
 
 setup_logger()
 logger = logging.getLogger(__name__)
