@@ -1,154 +1,39 @@
 import time
-import traceback
+import zipfile
 from datetime import datetime
+from pathlib import Path
 from threading import Lock, Thread
+from urllib import response
 
 import cv2
-from flask import Flask, Response, jsonify
+import requests
+from flask import Flask, Response
 
-import RDK_model_update
 import predict
 
 WEB_HOST = "0.0.0.0"
-WEB_PORT = 5000
-JPEG_QUALITY = 80
+WEB_PORT = 5001
 
 app = Flask(__name__)
-latest_jpg = None
-latest_text = "等待推理结果..."
 frame_lock = Lock()
-update_lock = Lock()
-update_state = {
-    "running": False,
-    "ok": None,
-    "message": "未开始模型更新",
-    "started_at": None,
-    "finished_at": None,
-    "model_path": None,
+latest_jpg = None
+update_info = {
+    "status": "idle",
+    "message": "检测中",
 }
 
 
-def set_update_state(**kwargs):
-    with update_lock:
-        update_state.update(kwargs)
-
-
-def get_update_state():
-    with update_lock:
-        state = dict(update_state)
-
-    try:
-        state["model_path"] = str(predict.current_onnx_model_path())
-    except Exception as exc:
-        state["model_path"] = f"读取失败: {exc}"
-
-    return state
-
-
-def run_model_update():
-    set_update_state(
-        running=True,
-        ok=None,
-        message="正在采集图片并更新模型...",
-        started_at=datetime.now().isoformat(timespec="seconds"),
-        finished_at=None,
-    )
-
-    try:
-        RDK_model_update.UpdateModel()
-    except Exception as exc:
-        traceback.print_exc()
-        set_update_state(
-            running=False,
-            ok=False,
-            message=f"模型更新失败: {exc}",
-            finished_at=datetime.now().isoformat(timespec="seconds"),
-        )
-        return
-
-    set_update_state(
-        running=False,
-        ok=True,
-        message="模型更新完成，实时推理会自动加载新模型",
-        finished_at=datetime.now().isoformat(timespec="seconds"),
-    )
-
-
-def start_model_update():
-    with update_lock:
-        if update_state["running"]:
-            return False
-        update_state.update(
-            {
-                "running": True,
-                "ok": None,
-                "message": "模型更新任务已启动...",
-                "started_at": datetime.now().isoformat(timespec="seconds"),
-                "finished_at": None,
-            }
-        )
-
-    Thread(target=run_model_update, daemon=True).start()
-    return True
-
-
-def draw_result(image, score, big_defects, small_defects):
-    show = image.copy()
-
-    for defect in big_defects:
-        x1, y1, x2, y2 = defect["bbox"]
-        cv2.rectangle(show, (x1, y1), (x2, y2), (0, 0, 255), 2)
-        cv2.putText(
-            show,
-            "BIG",
-            (x1, max(25, y1 - 6)),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (0, 0, 255),
-            2,
-        )
-
-    for defect in small_defects:
-        x1, y1, x2, y2 = defect["bbox"]
-        cv2.rectangle(show, (x1, y1), (x2, y2), (255, 0, 0), 2)
-        cv2.putText(
-            show,
-            "SMALL",
-            (x1, max(25, y1 - 6)),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 0, 0),
-            2,
-        )
-
-    text = f"score={score:.4f}  big={len(big_defects)}  small={len(small_defects)}"
-    cv2.rectangle(show, (0, 0), (show.shape[1], 42), (0, 0, 0), -1)
-    cv2.putText(show, text, (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-    return show, text
-
-
 def run_predict_loop():
-    global latest_jpg, latest_text
+    global latest_jpg
 
-    image_stream = predict.CaptureImages()
-    for image in image_stream:
-        # 模型预处理
-        input_nchw = predict.preprocess_for_model(image)
-
-        score, pred_label, anomaly_map, model_mask = predict.run_onnx(input_nchw)
-        mask = predict.make_mask_from_model(model_mask, image.shape, pred_label)
-        big_defects, small_defects = predict.split_defects_by_mask(image, mask)
-
-        predict.RunYolo(image, big_defects, small_defects)
-
-        show, text = draw_result(image, score, big_defects, small_defects)
-        ok, jpg = cv2.imencode(".jpg", show, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
+    for image in predict.image_stream():
+        info = predict.predict_image(image)
+        ok, jpg = cv2.imencode(".jpg", info["result"])
         if not ok:
             continue
 
         with frame_lock:
             latest_jpg = jpg.tobytes()
-            latest_text = text
 
 
 def make_stream():
@@ -160,7 +45,7 @@ def make_stream():
             time.sleep(0.1)
             continue
 
-        yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
+        yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
         time.sleep(0.03)
 
 
@@ -171,68 +56,42 @@ def index():
     <html>
     <head>
         <meta charset="utf-8">
-        <title>Predict Web</title>
+        <title>PaDiM</title>
         <style>
             body { margin: 0; background: #111; color: #eee; font-family: Arial, sans-serif; }
             .bar {
                 display: flex;
-                align-items: center;
-                gap: 12px;
+                gap: 24px;
                 padding: 12px 16px;
                 background: #222;
                 font-size: 18px;
             }
-            .title { font-weight: 700; }
-            .status {
-                flex: 1;
-                min-width: 0;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                color: #bbb;
-                font-size: 14px;
-            }
-            button {
-                border: 0;
-                border-radius: 6px;
-                background: #18a058;
-                color: white;
-                cursor: pointer;
-                font-size: 14px;
-                padding: 8px 12px;
-            }
-            button:disabled { background: #555; cursor: wait; }
-            img { display: block; max-width: 100vw; max-height: calc(100vh - 58px); margin: 0 auto; }
+            img { display: block; max-width: 100vw; max-height: calc(100vh - 50px); margin: 0 auto; }
         </style>
     </head>
     <body>
         <div class="bar">
-            <div class="title">predict.py 实时结果</div>
-            <div class="status" id="status">正在读取模型状态...</div>
-            <button id="updateBtn" type="button">更新模型</button>
+            <span>PaDiM 实时检测</span>
+            <span id="status">正在读取状态...</span>
+            <button id="newFabricBtn" type="button">新布来了</button>
         </div>
         <img src="/video_feed">
         <script>
-            const statusEl = document.getElementById("status");
-            const updateBtn = document.getElementById("updateBtn");
-
             async function refreshStatus() {
-                const response = await fetch("/model_update/status");
+                const response = await fetch("/update_status");
                 const data = await response.json();
-                updateBtn.disabled = data.running;
-                statusEl.textContent = `${data.message} | 当前模型: ${data.model_path || "未知"}`;
+                document.getElementById("status").textContent = data.message;
             }
 
-            updateBtn.addEventListener("click", async () => {
-                updateBtn.disabled = true;
-                const response = await fetch("/model_update", { method: "POST" });
-                const data = await response.json();
-                statusEl.textContent = data.message;
+            async function newFabric() {
+                await fetch("/new_fabric", { method: "POST" });
                 refreshStatus();
-            });
+            }
+
+            document.getElementById("newFabricBtn").addEventListener("click", newFabric);
 
             refreshStatus();
-            setInterval(refreshStatus, 2000);
+            setInterval(refreshStatus, 1000);
         </script>
     </body>
     </html>
@@ -244,34 +103,193 @@ def video_feed():
     return Response(make_stream(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
-@app.route("/model_update", methods=["POST"])
-def model_update():
-    started = start_model_update()
-    status_code = 202 if started else 409
-    state = get_update_state()
-    return jsonify(state), status_code
+@app.route("/update_status")
+def get_update_status():
+    """显示流程运行状态"""
+    return update_info
 
 
-@app.route("/model_update/status")
-def model_update_status():
-    return jsonify(get_update_state())
+@app.route("/new_fabric", methods=["POST"])
+def new_fabric():
+    if update_info["status"] not in ["idle", "done", "error"]:
+        return {
+            "status": update_info["status"],
+            "message": "当前正在更新中，请不要重复点击",
+        }
 
-def run_camara():
-    """ 实时推流 """
+    update_info["status"] = "capturing"
+    update_info["message"] = "收到新布信号，开始更新"
+
+    Thread(target=update_model_task, daemon=True).start()
+
+    return update_info
+
+
+def capture_images():
+    """新布来了，进行采集"""
+    folder_name = datetime.now().strftime("%Y%m%d_%H%M%S")
+    image_dir = Path("Server") / folder_name / "good"
+    image_dir.mkdir(parents=True, exist_ok=True)
+
     cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)  # 设置宽度
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)  # 设置高度
-    while True:
+    if not cap.isOpened():
+        raise RuntimeError("摄像头打开失败")
+
+    target = 20  # 收集 20 张照片
+    for i in range(target):
         ret, frame = cap.read()
-        if not ret:
-            print("无法读取视频流")
-            break
-        yield frame  # 返回当前帧
-        time.sleep(1 / 30)  # 设置帧率为30 FPS
-        
+        image_path = image_dir / f"img_{i:03d}.png"
+        cv2.imwrite(str(image_path), frame)
+
+        time.sleep(1 / 5)
+
+    cap.release()
+    return folder_name, image_dir
+
+
+def zip_images(folder_name):
+    """
+    对采集到的文件进行压缩
+    zip 里的结构为:
+        good/img_000.png
+        good/img_001.png
+    """
+    version_dir = Path("Server") / folder_name
+    zip_path = version_dir / f"{folder_name}.zip"
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        image_dir = version_dir / "good"
+
+        for image_path in image_dir.glob("*.png"):
+            zf.write(image_path, image_path.relative_to(version_dir))
+
+    return zip_path
+
+
+def upload_zipfile(zip_path):
+    """将打包的 zip 文件上传至服务器"""
+    url = "http://100.110.49.18:5000/upload"
+    with open(zip_path, "rb") as f:
+        files = {"file": (zip_path.name, f, "application/zip")}
+        response = requests.post(url, files=files, timeout=60)
+
+    # print("服务器状态码:", response.status_code)
+    # print("服务器返回:", response.text)
+    response.raise_for_status()
+    return response.json()
+
+
+def check_model(folder_name):
+    """
+    检查模型是否训练好
+    最多等 300s 每 5s 询问一次
+    """
+    max_wait = 60
+    url = f"http://100.110.49.18:5000/ready/{folder_name}"
+    for i in range(max_wait):
+        update_info["status"] = "training"
+        update_info["message"] = f"服务器训练中，第{i + 1}次等待"
+        response = requests.get(url, timeout=10)
+
+        response.raise_for_status()
+        data = response.json()
+        ready = data.get("ready", False)
+
+        if ready:
+            update_info["message"] = "训练完成"
+            return
+
+        time.sleep(5)
+    raise RuntimeError("等待超时")
+
+
+def download_model(folder_name):
+    """避免下载失败，先报错tmp 成功后再替换成 model.onnx"""
+    url = f"http://100.110.49.18:5000/download/{folder_name}"
+
+    response = requests.get(url, timeout=60)
+
+    print("下载状态码:", response.status_code)
+    print("下载返回长度:", len(response.content))
+
+    response.raise_for_status()
+
+    model_dir = Path("Server") / folder_name / "model"
+    model_dir.mkdir(parents=True, exist_ok=True)
+
+    tmp_path = model_dir / "model.onnx.tmp"
+    model_path = model_dir / "model.onnx"
+
+    with open(tmp_path, "wb") as f:
+        f.write(response.content)
+
+    if tmp_path.stat().st_size == 0:
+        raise RuntimeError("下载到的模型文件为空")
+
+    tmp_path.replace(model_path)
+
+    return model_path
+
+
+def switch_current_model(model_path):
+    """model_path Server/xxxx/model/model.onnx"""
+    model_dir = model_path.parent
+
+    current_model = Path("current_model")
+    tmp_link = Path("current_model.tmp")
+
+    if tmp_link.exists() or tmp_link.is_symlink():
+        tmp_link.unlink()
+
+    if current_model.exists() or current_model.is_symlink():
+        current_model.unlink()
+
+    tmp_link.symlink_to(model_dir, target_is_directory=True)
+    tmp_link.rename(current_model)
+
+    predict.reload_model()
+
+    print("当前模型已切换到:", model_dir)
+
+
+def update_model_task():
+    """模拟更新"""
+    try:
+        update_info["status"] = "capturing"
+        update_info["message"] = "正在采集新布图片"
+
+        folder_name, image_dir = capture_images()
+
+        update_info["message"] = "正在打包图片"
+        zip_path = zip_images(folder_name)
+
+        update_info["status"] = "uploading"
+        update_info["message"] = "正在上传图片"
+        server_reply = upload_zipfile(zip_path)
+
+        update_info["status"] = "training"
+        update_info["message"] = "图片上传完成，等待服务器训练"
+        folder_name = server_reply["folder_name"]
+
+        check_model(folder_name)
+
+        update_info["status"] = "downloading"
+        update_info["message"] = "正在下载新模型"
+        model_path = download_model(folder_name)
+
+        update_info["message"] = "正在切换当前模型"
+        switch_current_model(model_path)
+
+        update_info["status"] = "done"
+        update_info["message"] = f"模型更新完成，已切换到: {model_path}"
+
+    except Exception as e:
+        update_info["status"] = "error"
+        update_info["message"] = f"更新失败: {e}"
+
+
 def main():
-    # Thread(target=run_predict_loop, daemon=True).start() # 整体流程
-    Thread(target=run_camara, daemon=True).start() # 实时推流
+    Thread(target=run_predict_loop, daemon=True).start()
     print(f"网页地址: http://{WEB_HOST}:{WEB_PORT}")
     app.run(host=WEB_HOST, port=WEB_PORT, threaded=True)
 
