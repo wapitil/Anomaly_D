@@ -1,0 +1,97 @@
+{
+  "image": "collected_data/jietou/20260512_133005_img_000.png",
+  "shape": [
+    1944,
+    2592,
+    3
+  ],
+  "parameters": {
+    "slice_size": 1280,
+    "sigma": 25.0,
+    "kernel": 41,
+    "threshold_percentile": 99.4,
+    "min_threshold": 12,
+    "min_area": 80,
+    "merge_margin": 80,
+    "open_size": 3,
+    "close_size": 9,
+    "tile_dedupe_iou": 0.85
+  },
+  "slice_count": 6,
+  "raw_candidates_count": 135,
+  "merged_candidate_count": 16,
+  "slices": [
+    {
+      "name": "20260512_133005_img_000_slice_000_x611_y0.jpg",
+      "x1": 611,
+      "y1": 0,
+      "x2": 1891,
+      "y2": 1280,
+      "source_candidate": 0
+    },
+    {
+      "name": "20260512_133005_img_000_slice_001_x1312_y627.jpg",
+      "x1": 1312,
+      "y1": 627,
+      "x2": 2592,
+      "y2": 1907,
+      "source_candidate": 1
+    },
+    {
+      "name": "20260512_133005_img_000_slice_002_x849_y263.jpg",
+      "x1": 849,
+      "y1": 263,
+      "x2": 2129,
+      "y2": 1543,
+      "source_candidate": 2
+    },
+    {
+      "name": "20260512_133005_img_000_slice_003_x1312_y321.jpg",
+      "x1": 1312,
+      "y1": 321,
+      "x2": 2592,
+      "y2": 1601,
+      "source_candidate": 3
+    },
+    {
+      "name": "20260512_133005_img_000_slice_004_x582_y664.jpg",
+      "x1": 582,
+      "y1": 664,
+      "x2": 1862,
+      "y2": 1944,
+      "source_candidate": 6
+    },
+    {
+      "name": "20260512_133005_img_000_slice_005_x1081_y664.jpg",
+      "x1": 1081,
+      "y1": 664,
+      "x2": 2361,
+      "y2": 1944,
+      "source_candidate": 8
+    },
+    {
+      "name": "20260512_133005_img_000_slice_006_x151_y579.jpg",
+      "x1": 151,
+      "y1": 579,
+      "x2": 1431,
+      "y2": 1859,
+      "source_candidate": 9
+    },
+    {
+      "name": "20260512_133005_img_000_slice_007_x1312_y0.jpg",
+      "x1": 1312,
+      "y1": 0,
+      "x2": 2592,
+      "y2": 1280,
+      "source_candidate": 10
+    },
+    {
+      "name": "20260512_133005_img_000_slice_008_x633_y409.jpg",
+      "x1": 633,
+      "y1": 409,
+      "x2": 1913,
+      "y2": 1689,
+      "source_candidate": 13
+    }
+  ]
+}

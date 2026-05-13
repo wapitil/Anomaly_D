@@ -1,0 +1,105 @@
+{
+  "image": "Data/collected_data/good/20260512_132533_img_000.png",
+  "shape": [
+    1944,
+    2592,
+    3
+  ],
+  "parameters": {
+    "slice_size": 1280,
+    "sigma": 25.0,
+    "kernel": 41,
+    "threshold_percentile": 99.4,
+    "min_threshold": 12,
+    "min_area": 80,
+    "merge_margin": 80,
+    "open_size": 3,
+    "close_size": 9,
+    "tile_dedupe_iou": 0.85
+  },
+  "slice_count": 6,
+  "raw_candidates_count": 142,
+  "merged_candidate_count": 15,
+  "slices": [
+    {
+      "name": "20260512_132533_img_000_slice_000_x336_y0.jpg",
+      "x1": 336,
+      "y1": 0,
+      "x2": 1616,
+      "y2": 1280,
+      "source_candidate": 0
+    },
+    {
+      "name": "20260512_132533_img_000_slice_001_x1312_y664.jpg",
+      "x1": 1312,
+      "y1": 664,
+      "x2": 2592,
+      "y2": 1944,
+      "source_candidate": 1
+    },
+    {
+      "name": "20260512_132533_img_000_slice_002_x537_y664.jpg",
+      "x1": 537,
+      "y1": 664,
+      "x2": 1817,
+      "y2": 1944,
+      "source_candidate": 2
+    },
+    {
+      "name": "20260512_132533_img_000_slice_003_x1312_y0.jpg",
+      "x1": 1312,
+      "y1": 0,
+      "x2": 2592,
+      "y2": 1280,
+      "source_candidate": 3
+    },
+    {
+      "name": "20260512_132533_img_000_slice_004_x1179_y0.jpg",
+      "x1": 1179,
+      "y1": 0,
+      "x2": 2459,
+      "y2": 1280,
+      "source_candidate": 6
+    },
+    {
+      "name": "20260512_132533_img_000_slice_005_x1066_y0.jpg",
+      "x1": 1066,
+      "y1": 0,
+      "x2": 2346,
+      "y2": 1280,
+      "source_candidate": 8
+    },
+    {
+      "name": "20260512_132533_img_000_slice_006_x349_y651.jpg",
+      "x1": 349,
+      "y1": 651,
+      "x2": 1629,
+      "y2": 1931,
+      "source_candidate": 9
+    },
+    {
+      "name": "20260512_132533_img_000_slice_007_x0_y0.jpg",
+      "x1": 0,
+      "y1": 0,
+      "x2": 1280,
+      "y2": 1280,
+      "source_candidate": 10
+    },
+    {
+      "name": "20260512_132533_img_000_slice_008_x0_y664.jpg",
+      "x1": 0,
+      "y1": 664,
+      "x2": 1280,
+      "y2": 1944,
+      "source_candidate": 13
+    },
+    {
+      "name": "20260512_132533_img_000_slice_009_x0_y154.jpg",
+      "x1": 0,
+      "y1": 154,
+      "x2": 1280,
+      "y2": 1434,
+      "source_candidate": 14
+    }
+  ]
+}
