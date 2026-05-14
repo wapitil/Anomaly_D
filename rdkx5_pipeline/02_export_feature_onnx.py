@@ -11,6 +11,7 @@ BACKBONE_NAME = "resnet18"
 PROJECT = "res_640"
 ONNX_PATH = Path("runs") / PROJECT / "onnx" / f"{PROJECT}.onnx"
 OPSET_VERSION = 11
+ONNX_IR_VERSION = 9
 
 
 def main() -> None:
@@ -28,7 +29,10 @@ def main() -> None:
         output_names=["feature"],
         opset_version=OPSET_VERSION,
         do_constant_folding=True,
+        external_data=False,
+        dynamo=False,
     )
+
     # save_metadata(
     #     ONNX_PATH.with_suffix(".metadata.json"),
     #     BACKBONE_NAME,

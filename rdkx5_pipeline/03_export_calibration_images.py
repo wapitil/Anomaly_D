@@ -19,7 +19,7 @@ def main() -> None:
     if not image_paths:
         raise SystemExit(f"no images found: {GOOD_IMAGE_DIR}")
 
-    resized_dir = OUTPUT_DIR / ""
+    resized_dir = OUTPUT_DIR / f"images_{config.input_size}_rgb"
     resized_dir.mkdir(parents=True, exist_ok=True)
     list_path = OUTPUT_DIR / "calibration_images.txt"
 
