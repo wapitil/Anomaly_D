@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 # Run 01_train_float_stats.py first, then change this block and run this file.
 NAME = "jietou"
 IMAGE_DIR = Path("Data/jingshu") / NAME
-PROJECT = "mob_640"
+PROJECT = "res_640"
 STATS_PATH = Path("runs") / PROJECT / "float_anomaly_stats.npz"
 OUTPUT_DIR = Path("runs") / PROJECT / f"{NAME}_visual"
 BATCH_SIZE = 32
@@ -31,10 +31,10 @@ def main() -> None:
         rows.append((label, float(score), image_path))
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    csv_path = OUTPUT_DIR / "pc_predict_result.csv"
+    # csv_path = OUTPUT_DIR / "pc_predict_result.csv"
     visual_path = OUTPUT_DIR / "pc_predict_summary.jpg"
 
-    save_csv(csv_path, rows)
+    # save_csv(csv_path, rows)
     save_visual_summary(visual_path, rows, threshold)
 
     anomaly_count = sum(1 for label, _, _ in rows if label == "anomaly")
@@ -42,7 +42,7 @@ def main() -> None:
     print(f"test images: {len(rows)}")
     print(f"normal: {len(rows) - anomaly_count}")
     print(f"anomaly: {anomaly_count}")
-    print(f"saved csv: {csv_path}")
+    # print(f"saved csv: {csv_path}")
     print(f"saved visual: {visual_path}")
 
 

@@ -9,7 +9,7 @@ from core import get_backbone_config, load_feature_model, save_metadata
 # OpenExplorer will quantize and compile this ONNX into an RDK X5 BPU model.
 BACKBONE_NAME = "resnet18"
 PROJECT = "res_640"
-ONNX_PATH = Path("runs") / PROJECT / f"{PROJECT}.onnx"
+ONNX_PATH = Path("runs") / PROJECT / "onnx" / f"{PROJECT}.onnx"
 OPSET_VERSION = 11
 
 
@@ -29,19 +29,19 @@ def main() -> None:
         opset_version=OPSET_VERSION,
         do_constant_folding=True,
     )
-    save_metadata(
-        ONNX_PATH.with_suffix(".metadata.json"),
-        BACKBONE_NAME,
-        {
-            "onnx_file": ONNX_PATH.name,
-            "input_layout": "NCHW",
-            "input_color": "RGB",
-            "input_dtype": "float32",
-            "preprocess": "letterbox_resize_to_square_then_imagenet_mean_std",
-            "output": "raw_feature_before_l2_normalize",
-            "next_step": "Use OpenExplorer to quantize and compile for RDK X5.",
-        },
-    )
+    # save_metadata(
+    #     ONNX_PATH.with_suffix(".metadata.json"),
+    #     BACKBONE_NAME,
+    #     {
+    #         "onnx_file": ONNX_PATH.name,
+    #         "input_layout": "NCHW",
+    #         "input_color": "RGB",
+    #         "input_dtype": "float32",
+    #         "preprocess": "letterbox_resize_to_square_then_imagenet_mean_std",
+    #         "output": "raw_feature_before_l2_normalize",
+    #         "next_step": "Use OpenExplorer to quantize and compile for RDK X5.",
+    #     },
+    # )
 
     print(f"exported: {ONNX_PATH}")
     print("BPU model output is a feature vector, not a final anomaly label.")

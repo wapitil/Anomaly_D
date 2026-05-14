@@ -8,6 +8,9 @@ wheels/
 
 #
 *.zip
+*.npz
+*.csv
+*.json
 
 # Virtual environments
 .venv
@@ -16,3 +19,4 @@ wheels/
 
 # Foloder
 Data/
+onnx/
