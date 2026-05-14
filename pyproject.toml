@@ -9,5 +9,6 @@ dependencies = [
     "onnxscript>=0.7.0",
     "opencv-python>=4.13.0.92",
     "pillow>=12.2.0",
+    "timm>=1.0.22",
     "torchvision>=0.26.0",
 ]

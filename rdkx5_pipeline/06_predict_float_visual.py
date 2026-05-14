@@ -7,10 +7,10 @@ import numpy as np
 from core import extract_float_features, list_images, load_stats, score_features
 from PIL import Image, ImageDraw, ImageFont
 
-# Run 01_train_float_stats.py first, then change this block and run this file.
+# Run 01_train.py first, then change this block and run this file.
 NAME = "jietou"
 IMAGE_DIR = Path("Data/jingshu") / NAME
-PROJECT = "res_640"
+PROJECT = "mob_v4_640"
 STATS_PATH = Path("runs") / PROJECT / "float_anomaly_stats.npz"
 OUTPUT_DIR = Path("runs") / PROJECT / f"{NAME}_visual"
 BATCH_SIZE = 32

@@ -10,11 +10,16 @@ from core import (
     save_stats,
 )
 
-# Change only this block for your first PC-side experiment.
-BACKBONE_NAME = "resnet18"
+# Change only this block for your PC-side experiment.
+# Available choices:
+# - "resnet18"
+# - "mobilenet_v2"
+# - "mobilenetv4_conv_medium"
+
+BACKBONE_NAME = "mobilenetv4_conv_medium"
 GOOD_IMAGE_DIR = Path("Data/jingshu/good/train")
-OUTPUT_DIR = Path("runs/res_640")
-BATCH_SIZE = 32
+OUTPUT_DIR = Path("runs/mobilenetv4_conv_medium_256")
+BATCH_SIZE = 16
 THRESHOLD_QUANTILE = 0.995
 
 

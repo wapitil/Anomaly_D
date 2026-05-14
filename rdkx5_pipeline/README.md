@@ -3,12 +3,14 @@
 This version avoids command-line arguments. Open each numbered script, change the
 small config block at the top, then run the file.
 
-## 01_train_float_stats.py
+## 01_train.py
 
 PC-side prototype. It uses a PyTorch backbone to extract normal-image features
 and saves `float_anomaly_stats.npz`.
 
 Use this only to check whether the chosen backbone is useful for your data.
+Change `BACKBONE_NAME` at the top of the file to switch between `resnet18`,
+`mobilenet_v2`, and `mobilenetv4_conv_medium`.
 
 ## 02_export_feature_onnx.py
 
@@ -37,7 +39,7 @@ runtime path.
 
 ## 06_predict_float_visual.py
 
-Run this after `01_train_float_stats.py`.
+Run this after `01_train.py`.
 
 It uses `float_anomaly_stats.npz` to predict a test image folder on PC, saves a
 CSV result file, and creates `pc_predict_summary.jpg` for quick visual checking.

@@ -42,12 +42,20 @@ BACKBONES = {
         mean=tuple(float(x) for x in IMAGENET_MEAN),
         std=tuple(float(x) for x in IMAGENET_STD),
     ),
+    "mobilenetv4_conv_medium": BackboneConfig(
+        name="mobilenetv4_conv_medium",
+        input_size=640,
+        feature_dim=1280,
+        mean=tuple(float(x) for x in IMAGENET_MEAN),
+        std=tuple(float(x) for x in IMAGENET_STD),
+    ),
 }
 
 
 class FeatureBackbone(torch.nn.Module):
     def __init__(self, backbone_name: str) -> None:
         super().__init__()
+        self.model: torch.nn.Module | None = None
         if backbone_name == "mobilenet_v2":
             model = models.mobilenet_v2(weights=MobileNet_V2_Weights.DEFAULT)
             self.features = model.features
@@ -56,10 +64,28 @@ class FeatureBackbone(torch.nn.Module):
             model = models.resnet18(weights=ResNet18_Weights.DEFAULT)
             self.features = torch.nn.Sequential(*list(model.children())[:-2])
             self.pool = torch.nn.AdaptiveAvgPool2d((1, 1))
+        elif backbone_name == "mobilenetv4_conv_medium":
+            try:
+                import timm
+            except ImportError as exc:
+                raise ImportError(
+                    "mobilenetv4_conv_medium needs timm. Install it with: "
+                    "pip install timm"
+                ) from exc
+            self.model = timm.create_model(
+                "mobilenetv4_conv_medium.e500_r256_in1k",
+                pretrained=True,
+                num_classes=0,
+                global_pool="avg",
+            )
+            self.features = torch.nn.Identity()
+            self.pool = torch.nn.Identity()
         else:
             raise ValueError(f"unsupported backbone: {backbone_name}")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.model is not None:
+            return self.model(x)
         x = self.features(x)
         x = self.pool(x)
         return torch.flatten(x, 1)
