@@ -1,0 +1,17 @@
+{
+  "model": "pipeline/models/res_640.bin",
+  "normal_image_dir": "pipeline/normal_images",
+  "normal_image_count": 14,
+  "feature_shape": [
+    14,
+    512
+  ],
+  "threshold_quantile": 0.995,
+  "threshold_scale": 1.8,
+  "threshold": 0.6301717042922974,
+  "score_mean": 0.2433374971151352,
+  "score_max": 0.35009539127349854,
+  "score_method": "l2_center",
+  "preprocess": "letterbox_resize_rgb_uint8_nchw",
+  "source": "rdk_bpu_infer_lib"
+}
